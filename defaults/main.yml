@@ -1,5 +1,5 @@
 ---
-haproxy_socket: /var/lib/haproxy/stats
+haproxy_socket: /run/haproxy/admin.sock
 haproxy_chroot: /var/lib/haproxy
 haproxy_user: haproxy
 haproxy_group: haproxy
@@ -10,21 +10,41 @@ haproxy_frontend_bind_address: '*'
 haproxy_frontend_port: 80
 haproxy_frontend_mode: 'http'
 
+haproxy_ssl_config: true
+
+haproxy_frontend_binds:
+  - address: '*'
+    port: 80
+    options: ''
+  - address: '*'
+    port: 443
+    options: 'default_backend {{ haproxy_backend_name }}'
+
 # Backend settings.
 haproxy_backend_name: 'habackend'
 haproxy_backend_mode: 'http'
 haproxy_backend_balance_method: 'roundrobin'
-haproxy_backend_httpchk: 'HEAD / HTTP/1.1\r\nHost:localhost'
+haproxy_backend_httpchk: 'send meth HEAD uri / ver HTTP/1.1 hdr Host localhost'
 
 # List of backend servers.
 haproxy_backend_servers: []
 # - name: app1
-#   address: 192.168.0.1:80
+#   address: 192.168.0.1:443
+#   options: 'ssl verify none'
 # - name: app2
 #   address: 192.168.0.2:80
+#   options: ''
+
+haproxy_backend_vars:
+- 'stick-table type ip size 1m expire 1h'
+- 'stick on src'
+- 'default-server inter 10s fall 3 rise 2'
+
 
 # Extra global vars (see README for example usage).
 haproxy_global_vars: []
+
+haproxy_default_vars: []
 
 # Default haproxy timeouts
 haproxy_connect_timeout: 5000
@@ -32,3 +52,5 @@ haproxy_client_timeout: 50000
 haproxy_server_timeout: 50000
 
 haproxy_template: "haproxy.cfg.j2"
+
+# TODO: stats section
