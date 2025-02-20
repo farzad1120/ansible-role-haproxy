@@ -2,7 +2,7 @@ global
   log /dev/log  local0
   log /dev/log  local1 notice
 {% if haproxy_socket != '' %}
-  stats socket {{ haproxy_socket }} level admin
+  stats socket {{ haproxy_socket }} mode 660 level admin expose-fd listeners
 {% endif %}
 {% if haproxy_chroot != '' %}
   chroot {{ haproxy_chroot }}
@@ -14,19 +14,39 @@ global
   {{ global_var }}
 {% endfor %}
 
+{% if haproxy_ssl_config %}
+  lua-load /etc/haproxy/acme-http01-webroot.lua
+
+  # Default SSL material locations
+  ca-base /etc/ssl/certs
+  crt-base /etc/ssl/private
+
+  tune.ssl.default-dh-param 2048
+  tune.bufsize 524288
+
+  # Default ciphers to use on SSL-enabled listening sockets.
+  # For more information, see ciphers(1SSL). This list is from:
+  #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+  # An alternative list with additional directives can be obtained from
+  #  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
+  ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
+  ssl-default-bind-options no-sslv3
+  ssl-server-verify none
+{% endif %}
+
 defaults
   log global
   mode  http
   option  httplog
   option  dontlognull
 {% if haproxy_version is version('1.4', '<=') %}
-        contimeout {{ haproxy_connect_timeout }}
-        clitimeout {{ haproxy_client_timeout }}
-        srvtimeout {{ haproxy_server_timeout }}
+  contimeout {{ haproxy_connect_timeout }}
+  clitimeout {{ haproxy_client_timeout }}
+  srvtimeout {{ haproxy_server_timeout }}
 {% else %}
-        timeout connect {{ haproxy_connect_timeout }}
-        timeout client {{ haproxy_client_timeout }}
-        timeout server {{ haproxy_server_timeout }}
+  timeout connect {{ haproxy_connect_timeout }}
+  timeout client {{ haproxy_client_timeout }}
+  timeout server {{ haproxy_server_timeout }}
 {% endif %}
 {% if ansible_os_family == 'Debian' %}
   errorfile 400 /etc/haproxy/errors/400.http
@@ -37,20 +57,36 @@ defaults
   errorfile 503 /etc/haproxy/errors/503.http
   errorfile 504 /etc/haproxy/errors/504.http
 {% endif %}
+{% for default_var in haproxy_default_vars %}
+  {{ default_var }}
+{% endfor %}
 
 frontend {{ haproxy_frontend_name }}
-    bind {{ haproxy_frontend_bind_address }}:{{ haproxy_frontend_port }}
-    mode {{ haproxy_frontend_mode }}
-    default_backend {{ haproxy_backend_name }}
+{% for bind in haproxy_frontend_binds %}
+  bind {{ bind.address }}:{{ bind.port }} {{ bind.options }}
+{% endfor %}
+  mode {{ haproxy_frontend_mode }}
+  default_backend {{ haproxy_backend_name }}
+{% if haproxy_ssl_config %}
+  http-request set-header X-Forwarded-Proto https if { ssl_fc }
+  acl url_acme_http01 path_beg /.well-known/acme-challenge/
+  http-request use-service lua.acme-http01 if METH_GET url_acme_http01
+  http-request set-var(txn.host) hdr(host)
+  http-request redirect  code 301  location https://%[hdr(host),regsub(^m\.,)]%[capture.req.uri] if { hdr(host) -i -m beg m. }
+{% endif %}
 
 backend {{ haproxy_backend_name }}
-    mode {{ haproxy_backend_mode }}
-    balance {{ haproxy_backend_balance_method }}
-    option forwardfor
+  mode {{ haproxy_backend_mode }}
+  balance {{ haproxy_backend_balance_method }}
+  option forwardfor
+  stick-table type ip size 1m expire 1h
+  stick on src
+  default-server inter 10s fall 3 rise 2
 {% if haproxy_backend_httpchk != '' %}
-    option httpchk {{ haproxy_backend_httpchk }}
+  option httpchk
+  http-check {{ haproxy_backend_httpchk }}
 {% endif %}
-    cookie SERVERID insert indirect
+  cookie SERVERID insert indirect
 {% for backend in haproxy_backend_servers %}
-    server {{ backend.name }} {{ backend.address }} cookie {{ backend.name }} check
+  server {{ backend.name }} {{ backend.address }} cookie {{ backend.name }} check {{ backend.options }}
 {% endfor %}
