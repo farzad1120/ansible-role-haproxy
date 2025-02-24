@@ -1,6 +1,4 @@
 ---
-dependencies: []
-
 galaxy_info:
   role_name: haproxy
   author: geerlingguy
@@ -21,3 +19,6 @@ galaxy_info:
     - haproxy
     - loadbalancer
     - http
+
+  dependencies:
+    - role: geerlingguy.certbot
