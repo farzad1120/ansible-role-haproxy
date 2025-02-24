@@ -13,12 +13,6 @@
     group: haproxy
     mode: "0755"
 
-- name: Debug command
-  ansible.builtin.debug:
-    msg: >
-      certbot certonly --text --non-interactive --webroot --webroot-path {{ haproxy_certbot_webroot }}  --renew-by-default --agree-tos --email {{ certbot_admin_email }} -d {{ item }}
-  loop: "{{ haproxy_domains }}"
-
 - name: Obtain SSL certificates using Certbot
   ansible.builtin.command:
     cmd: >
