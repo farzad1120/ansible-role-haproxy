@@ -33,8 +33,12 @@
     src: "haproxy-nossl.cfg.j2"
     dest: /etc/haproxy/haproxy.cfg
     mode: 644
-    validate: haproxy -f %s -c
+    validate: haproxy -f %s -c -q
   notify: restart haproxy
+
+- name: Restart HAProxy.
+  ansible.builtin.command:
+    cmd: "systemctl restart haproxy.service"
 
 - ansible.builtin.import_tasks: certbot.yml
 
