@@ -5,26 +5,26 @@ haproxy_user: haproxy
 haproxy_group: haproxy
 
 # Frontend settings.
-haproxy_frontend_name: 'hafrontend'
-haproxy_frontend_bind_address: '*'
+haproxy_frontend_name: "hafrontend"
+haproxy_frontend_bind_address: "*"
 haproxy_frontend_port: 80
-haproxy_frontend_mode: 'http'
+haproxy_frontend_mode: "http"
 
 haproxy_ssl_config: true
 
 haproxy_frontend_binds:
-  - address: '*'
+  - address: "*"
     port: 80
-    options: ''
-  - address: '*'
+    options: ""
+  - address: "*"
     port: 443
-    options: 'default_backend {{ haproxy_backend_name }}'
+    options: "ssl crt /etc/ssl/private alpn h2,http/1.1"
 
 # Backend settings.
-haproxy_backend_name: 'habackend'
-haproxy_backend_mode: 'http'
-haproxy_backend_balance_method: 'roundrobin'
-haproxy_backend_httpchk: 'send meth HEAD uri / ver HTTP/1.1 hdr Host localhost'
+haproxy_backend_name: "habackend"
+haproxy_backend_mode: "http"
+haproxy_backend_balance_method: "roundrobin"
+haproxy_backend_httpchk: "send meth HEAD uri / ver HTTP/1.1 hdr Host localhost"
 
 # List of backend servers.
 haproxy_backend_servers: []
@@ -36,16 +36,13 @@ haproxy_backend_servers: []
 #   options: ''
 
 haproxy_backend_vars:
-- 'stick-table type ip size 1m expire 1h'
-- 'stick on src'
-- 'default-server inter 10s fall 3 rise 2'
-
+  - "stick-table type ip size 1m expire 1h"
+  - "stick on src"
+  - "default-server inter 10s fall 3 rise 2"
 
 # Extra global vars (see README for example usage).
 haproxy_global_vars: []
-
 haproxy_default_vars: []
-
 # Default haproxy timeouts
 haproxy_connect_timeout: 5000
 haproxy_client_timeout: 50000
@@ -54,3 +51,4 @@ haproxy_server_timeout: 50000
 haproxy_template: "haproxy.cfg.j2"
 
 # TODO: stats section
+haproxy_certbot_webroot: /var/lib/haproxy
