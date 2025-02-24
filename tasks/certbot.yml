@@ -1,0 +1,43 @@
+---
+- name: Ensure Certbot is installed
+  ansible.builtin.apt:
+    name: certbot
+    state: present
+    update_cache: true
+
+- name: Create webroot directory for HAProxy (if not exists)
+  ansible.builtin.file:
+    path: "{{ certbot_webroot }}"
+    state: directory
+    owner: haproxy
+    group: haproxy
+    mode: "0755"
+
+- name: Debug command
+  ansible.builtin.debug:
+    msg: >
+      certbot certonly --text --non-interactive --webroot --webroot-path {{ haproxy_certbot_webroot }}  --renew-by-default --agree-tos --email {{ certbot_admin_email }} -d {{ item }}
+  loop: "{{ haproxy_domains }}"
+
+- name: Obtain SSL certificates using Certbot
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --text --non-interactive --webroot --webroot-path {{ haproxy_certbot_webroot }} --renew-by-default --agree-tos --email {{ certbot_admin_email }} -d {{ item }}
+    creates: "/etc/letsencrypt/live/{{ item }}/cert.pem"
+  loop: "{{ haproxy_domains }}"
+  register: certbot_result
+  changed_when: "'Congratulations' in certbot_result.stdout"
+
+- name: Generate HAProxy-compatible PEM file
+  ansible.builtin.shell:
+    cmd: >
+      cat /etc/letsencrypt/live/{{ item }}/cert.pem /etc/letsencrypt/live/{{ item }}/privkey.pem /etc/letsencrypt/live/{{ item }}/fullchain.pem > /etc/ssl/private/{{ item }}.pem
+  loop: "{{ haproxy_domains }}"
+
+- name: Set correct permissions for HAProxy SSL certificates
+  ansible.builtin.file:
+    path: "/etc/ssl/private/{{ item }}.pem"
+    owner: root
+    group: haproxy
+    mode: "0600"
+  loop: "{{ haproxy_domains }}"
