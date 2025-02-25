@@ -4,7 +4,7 @@
 
 Installs HAProxy on RedHat/CentOS and Debian/Ubuntu Linux servers.
 
-**Note**: Update to be compatible with newer versions of HAProxy
+**Note**: Updated to be compatible with newer versions of HAProxy
 
 ## Requirements
 
